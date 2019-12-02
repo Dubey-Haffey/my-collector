@@ -18,7 +18,8 @@ function google_keys(key_type){
 
 function google_save(experiment_id,
                      participant_id,
-                     encrypted_data){  
+                     encrypted_data,
+                     google_script_url){  
 
   data = {
     participant_id: participant_id,
@@ -27,7 +28,7 @@ function google_save(experiment_id,
   };
   $.ajax({
     type: 'POST',
-    url: "https://script.google.com/macros/s/AKfycbyuUWN7Jc1j62OuUh1JrJFuHn7e2VXLZdZ9FJs4dvwX_D6JI7M7/exec",
+    url: google_script_url, //"https://script.google.com/macros/s/AKfycbyuUWN7Jc1j62OuUh1JrJFuHn7e2VXLZdZ9FJs4dvwX_D6JI7M7/exec",
     data: data,
     crossDomain: true,
     timeout: 120000,

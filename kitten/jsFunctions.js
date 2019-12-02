@@ -77,6 +77,12 @@ function load_uberMegaFile(link_created){
     if(typeof(megaUberJson.keys) == "undefined"){
       encrypt_obj.generate_keys();
     }
+    if(typeof(megaUberJson.data.google_script)== "undefined"){
+      encrypt_obj.google_script_url();
+    }
+
+    $("#public_key").val(megaUberJson.keys.public_key);
+    $("#private_key").val(megaUberJson.keys.encrypted_private_key);
 
 		$("#option_Edit").click();
 		$("#startup_btn").fadeIn(500);
