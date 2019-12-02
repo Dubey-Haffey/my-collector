@@ -50,6 +50,8 @@ body, html {
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../libraries/bootbox.4.4.0.min.js"></script>
+  <script type="text/javascript" src="../libraries/bootbox.4.4.0.min.js"></script>
 </head>
 
 <style>
@@ -71,26 +73,26 @@ body, html {
 <div id="student_content"></div>
 
 <script>
-var rooms;
-$.get("Rooms.json",function(result){
-  rooms = result;
+var rooms = {};
+$.get("Rooms.csv",function(result){
+  var rooms_csv = Papa.parse(result).data;
+  // convert this into an object
+  rooms_csv.forEach(function(room){
+    rooms[room[0]] = room[1]
+  });
 });
 $("#login_button").on("click",function(){
-
-  //ajax call to redirect the student to the "experiment" -tbc
-
-
-  //hard coded solution for now
   var this_room = $("#classroom_id").val().toLowerCase();
   if(typeof(rooms[this_room]) !== "undefined"){
     document.location.href = rooms[this_room];
   } else {
     bootbox.alert("this room doesn't appear to exist");
   }
-  /*
-  if($("#classroom_id").val().toLowerCase() == "howdy"){
-    document.location.href = "https://www.ocollector.org/kitten/RunStudy.html?location=https://www.dropbox.com/s/39x5c86zeog9ubp/accelerator_participant.json?dl=0&name=Condition1";
+});
+$('#classroom_id').keypress(function (e) {
+  if (e.which == 13) {
+    $("#login_button").click();
+    return false;    //<---- Add this line
   }
-  */
 });
 </script>
