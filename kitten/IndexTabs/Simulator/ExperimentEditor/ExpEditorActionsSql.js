@@ -203,9 +203,9 @@ $("#save_btn").on("click", function(){
   $("#save_snip_btn").click();
 	$("#save_data_script_btn").click();
 
-	//update trialtypes in the experiment
 	var experiment = megaUberJson.exp_mgmt.experiment;
-	var this_exp = megaUberJson.exp_mgmt.experiments[experiment];
+  var this_exp = megaUberJson.exp_mgmt.experiments[experiment];
+      this_exp.public_key = megaUberJson.keys.public_key;
 
 	//parse procs for survey saving next
 	if(typeof(this_exp) !== "undefined") {
@@ -223,8 +223,10 @@ $("#save_btn").on("click", function(){
     }
 
     Object.keys(this_exp.parsed_procs).forEach(function(proc_name){
+
       this_proc = this_exp.parsed_procs[proc_name];
       this_proc.forEach(function(proc_row){
+        proc_row = clean_obj_keys(proc_row);
         if(typeof(proc_row.survey) !== "undefined" &&
           proc_row.survey !== ""){
           var this_survey = proc_row.survey.toLowerCase();
@@ -260,12 +262,23 @@ $("#save_btn").on("click", function(){
       });
     });
 
-    var proc = this_exp.procedure;
-    trialtype_index = this_exp.all_procs[proc][0].indexOf("trial type");
+    //clean all the procedures
+    var trialtypes = [];
 
-    var trialtypes = this_exp.all_procs[proc].map(row => row[trialtype_index]);
-    trialtypes = _.uniq(trialtypes);
+    Object.keys(this_exp.parsed_procs).forEach(function(proc_name){
+      this_exp.parsed_procs[proc_name] = this_exp.parsed_procs[proc_name].map(function(row){
+        var cleaned_row = clean_obj_keys(row);
+        if(trialtypes.indexOf(cleaned_row["trial type"]) == -1){
+          trialtypes.push(cleaned_row["trial type"]);
+        }
+        return cleaned_row;
+      });
+
+    });
     trialtypes = trialtypes.filter(Boolean); //remove blanks
+
+    console.dir("trialtypes below:");
+    console.dir(trialtypes);
 
     if(typeof(this_exp.trialtypes) == "undefined"){
       this_exp.trialtypes = {};

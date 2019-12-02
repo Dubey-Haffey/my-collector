@@ -31,15 +31,21 @@ function load_default_surveys(){
     if(list.length > 0){
       var this_survey = list.pop();
       $.get(collector_map[this_survey],function(survey_content){
-        default_surveys[this_survey] = survey_content;
+        default_surveys[this_survey] = Papa.parse(survey_content).data;
         load_survey(list);
       });
     } else {
-
+      //based on solution by "dule" at https://stackoverflow.com/questions/740195/adding-options-to-a-select-using-jquery
+      default_surveys_list = Object.keys(default_surveys).sort();
+      $.each(default_surveys_list, function (i, item) {
+        $('#survey_select').append($('<option>', {
+          value: "default|" + item , //.value,
+          text : item, //.text
+        }));
+      });
     }
-
   }
-
+  load_survey(default_survey_files);
   /*
   default_survey_files.forEach(function(file){
 
@@ -79,40 +85,42 @@ load_default_surveys();
 }
 </style>
 
-<table>
-  <tr>
-    <td>
-      <button class='btn btn-primary' type='button' id="new_survey_button" title="Will create a new survey based on the one you have selected. Please select one of the existing surveys if you haven't already to be able to create a new survey based on it.">New Survey</button>
-    </td>
-    <td>
-      <select id='survey_select' class="form-control">
-        <option disabled selected>Please select a survey</option>
-      </select>
-    </td>
-    <td>
-      <button id='save_survey_btn' class='btn btn-primary'>Save</button>
-			<button id='delete_survey_btn' class='btn btn-primary'>Delete</button>
-    </td>
-    <td id="spreadsheet_preview_tabs">
-      <ul  class="nav nav-pills mb-3 bg-secondary" id="pills-tab" role="tablist">
-        <li class="nav-item">
-          <a class="nav-link active text-white" id="pills-spreadsheet-tab" data-toggle="pill" href="#pills-spreadsheet" role="tab" aria-controls="pills-spreadsheet" aria-selected="true">Spreadsheet</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link text-white" id="pills-preview-tab" data-toggle="pill" href="#pills-preview" role="tab" aria-controls="pills-preview" aria-selected="false">Preview</a>
-        </li>
-      </ul>
-    </td>
-  </tr>
-</table>
-<div class="tab-content" id="pills-tabContent">
-  <div class="tab-pane fade show active" id="pills-spreadsheet" role="tabpanel" aria-labelledby="pills-spreadsheet-tab">
-    <div id="survey_HoT"></div>
+<nav class="navbar navbar-primary bg-white fixed-top fixed-top-2" id="sim_navbar">
+  <table>
+    <tr>
+      <td>
+        <button class='btn btn-primary' type='button' id="new_survey_button" title="Will create a new survey based on the one you have selected. Please select one of the existing surveys if you haven't already to be able to create a new survey based on it.">New Survey</button>
+      </td>
+      <td>
+        <select id='survey_select' class="form-control">
+          <option disabled selected>Please select a survey</option>
+        </select>
+      </td>
+      <td>
+        <button id='save_survey_btn' class='btn btn-primary'>Save</button>
+        <button id='delete_survey_btn' class='btn btn-primary'>Delete</button>
+      </td>
+      <td id="spreadsheet_preview_tabs">
+        <ul  class="nav nav-pills mb-3 bg-secondary" id="pills-tab" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active text-white" id="pills-spreadsheet-tab" data-toggle="pill" href="#pills-spreadsheet" role="tab" aria-controls="pills-spreadsheet" aria-selected="true">Spreadsheet</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" id="pills-preview-tab" data-toggle="pill" href="#pills-preview" role="tab" aria-controls="pills-preview" aria-selected="false">Preview</a>
+          </li>
+        </ul>
+      </td>
+    </tr>
+  </table>
+  <div class="tab-content" id="pills-tabContent">
+    <div class="tab-pane fade show active" id="pills-spreadsheet" role="tabpanel" aria-labelledby="pills-spreadsheet-tab">
+      <div id="survey_HoT"></div>
+    </div>
+    <div class="tab-pane fade" id="pills-preview" role="tabpanel" aria-labelledby="pills-preview-tab">
+      <div id="survey_preview"></div>
+    </div>
   </div>
-  <div class="tab-pane fade" id="pills-preview" role="tabpanel" aria-labelledby="pills-preview-tab">
-    <div id="survey_preview"></div>
-  </div>
-</div>
+</nav>
 
 
 <script>

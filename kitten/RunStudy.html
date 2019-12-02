@@ -23,6 +23,44 @@
 		Kitten release (2019) author: Dr. Anthony Haffey (a.haffey@reading.ac.uk)
 -->
 <script src="../libraries/jquery-3.3.1.min.js"></script>
+<script src="Code/googleTriggers.js"></script>
+
+
+<!--
+
+/*
+
+The encryption code - wrap this more tidily once it is working (and make the crypto-js library local)
+
+*/
+
+-->
+
+<script src="../libraries/tweetnacl.js"></script>
+<script src="../libraries/tweetnacl-utils.js"></script>
+<script src="../libraries/crypto-js.min.js"></script>
+<script>
+
+function encrypt(receiverPublicKey, msgParams) {  //: string
+  const ephemeralKeyPair = nacl.box.keyPair()  
+  const pubKeyUInt8Array =  nacl.util.decodeBase64(receiverPublicKey)  
+  const msgParamsUInt8Array = nacl.util.decodeUTF8(msgParams)  
+  const nonce = nacl.randomBytes(nacl.box.nonceLength)
+  const encryptedMessage = nacl.box(
+    msgParamsUInt8Array,
+    nonce,
+    pubKeyUInt8Array,
+    ephemeralKeyPair.secretKey
+  )  
+  return {
+    ciphertext: nacl.util.encodeBase64(encryptedMessage),
+    ephemPubKey: nacl.util.encodeBase64(ephemeralKeyPair.publicKey),
+    nonce: nacl.util.encodeBase64(nonce),
+    version: "x25519-xsalsa20-poly1305"
+  }  
+}
+</script>
+
 
 <!--
 <script src="../libraries/tweetnacl.js"></script>
@@ -231,49 +269,56 @@ function collectorPapaParsed(preparsed){
 	return post_parsed;
 }
 
+function simulator_off(){
+  return typeof(dev_obj.simulator_on) == "undefined" || dev_obj.simulator_on == "false";
+}
+
 // transform exp_json into readable csv
 ///////////////////////////////////////
 function precrypted_data(decrypted_data,message){
-  responses_csv = decrypted_data.responses;
-	response_headers = [];
-	responses_csv.forEach(function(row){
-		Object.keys(row).forEach(function(item){
-			if(response_headers.indexOf(item) == -1){
-				response_headers.push(item);
-			};
-		});
-	});
-	this_condition    = decrypted_data.this_condition;
 
-  condition_headers = Object.keys(this_condition).filter(function(item){
-    return item !== "_empty_";
-  });
+  if(simulator_off()){
+    responses_csv = decrypted_data.responses;
+    response_headers = [];
+    responses_csv.forEach(function(row){
+      Object.keys(row).forEach(function(item){
+        if(response_headers.indexOf(item) == -1){
+          response_headers.push(item);
+        };
+      });
+    });
+    this_condition    = decrypted_data.this_condition;
 
-	//condition_headers = Object.keys(this_condition).filter(item => item !== "_empty_");
-	table_headers			= response_headers.concat(condition_headers);
-	downloadable_csv = [table_headers];
-	responses_csv.forEach(function(row,row_no){
-		downloadable_csv.push([]);
-		table_headers.forEach(function(item,item_no){
-			if(typeof(row[item]) !== "undefined"){
-				downloadable_csv[row_no+1][item_no] = row[item];
-			} else if (condition_headers.indexOf(item) !== -1){
-				downloadable_csv[row_no+1][item_no] = this_condition[item];
-			} else {
-				downloadable_csv[row_no+1][item_no] = "";
-			}
-		});
-	});
+    condition_headers = Object.keys(this_condition).filter(function(item){
+      return item !== "_empty_";
+    });
 
-	bootbox.prompt({
-		title:message,
-		value:$("#participant_code").val()+".csv",
-		callback:function(result){
-			if(result !== null){
-				save_csv(result,Papa.unparse(downloadable_csv));
-			}
-		}
-	});
+    //condition_headers = Object.keys(this_condition).filter(item => item !== "_empty_");
+    table_headers			= response_headers.concat(condition_headers);
+    downloadable_csv = [table_headers];
+    responses_csv.forEach(function(row,row_no){
+      downloadable_csv.push([]);
+      table_headers.forEach(function(item,item_no){
+        if(typeof(row[item]) !== "undefined"){
+          downloadable_csv[row_no+1][item_no] = row[item];
+        } else if (condition_headers.indexOf(item) !== -1){
+          downloadable_csv[row_no+1][item_no] = this_condition[item];
+        } else {
+          downloadable_csv[row_no+1][item_no] = "";
+        }
+      });
+    });
+
+    bootbox.prompt({
+      title:message,
+      value:$("#participant_code").val()+".csv",
+      callback:function(result){
+        if(result !== null){
+          save_csv(result,Papa.unparse(downloadable_csv));
+        }
+      }
+    });
+  }
 }
 experiment_finished_and_emailed = false;
 function final_trial(){
@@ -281,7 +326,7 @@ function final_trial(){
 	$("#experiment_div").html("<h3 class='text-primary'>Please do not close this window until it has been confirmed that the researcher has been e-mailed your data (or you have downloaded the data yourself that you will e-mail the researcher). If you do not get a prompt to do this within 30 seconds, press CTRL-S and you should be able to directly download your data.</h3>");
 	download_at_end = exp_json.this_condition.download_at_end;
 
-	if(typeof(dev_obj.simulator_on) == "undefined" || dev_obj.simulator_on == "false"){
+	if(simulator_off()){
 		$.post("emailData.php",{
 			all_data   : JSON.stringify(exp_json),
 		},function(returned_data){
@@ -518,6 +563,21 @@ function create_exp_json_functions(){
 	//////////////////////////
 
 	exp_json.finish_trial = function(trial_no,post_no){
+    
+    //trigger google save if we know we're in github
+    if(dev_obj.context == "github"){
+      if(typeof(dev_obj.experiment) == "undefined"){
+        //get experiment name from url
+        var split_url      = document.URL.split(".json")[0];
+        dev_obj.experiment = split_url.split("/").pop();
+      }
+
+      google_save(dev_obj.experiment,
+                  $("#participant_code").val(),
+                  JSON.stringify(encrypt(exp_json.public_key,                  //the public key
+                                JSON.stringify(exp_json.responses)))); //the data
+    }
+    
 		$("#experiment_progress").css("width",(100 * exp_json.trial_no/(exp_json.parsed_proc.length-1))+"%");
 		if(typeof(trial_no) !== "undefined"){
 
