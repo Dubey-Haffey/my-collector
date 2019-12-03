@@ -198,12 +198,7 @@ if(typeof(dev_obj.simulator_on) !== "undefined" &&
 		</div>
 	</div>
 </div>
-<div id="participant_country" style="display:none"></div>
-<script>
-$("#participant_country").load("ParticipantCountry.html");
-</script>
-
-
+<div id="participant_country"></div>
 <script>
 
 
@@ -251,8 +246,30 @@ if(typeof(block_save) !== "undefined"){ //i.e. simulator
 
 <script src="iframe_library.js"></script>
 <script src="TrialFunctions.js"></script>
+<script src="https://www.amcharts.com/lib/3/ammap.js"></script>
+<script src="https://www.amcharts.com/lib/3/maps/js/worldLow.js"></script>
+<script src="https://www.amcharts.com/lib/3/themes/light.js"></script>
 
 <script>
+google_obj = {
+  saves_started:0,
+  saves_ended:0,
+  save_queue:[],
+  save_queue_add:function(save_queue_item){
+    google_obj.save_queue.push(save_queue_item);
+    if(google_obj.save_queue.length == 1){        //need to initiate run_save as it stopped before you added this item
+      google_obj.run_save();
+    }
+  },
+  run_save:function(){
+    var this_save = google_obj.save_queue.pop();
+    this_save();
+    if(google_obj.save_queue.length > 0){         //keep going until all saves done.
+      gogle_obj.run_save();
+    }
+  }
+}
+
 function collectorPapaParsed(preparsed){
 
 	post_parsed = Papa.parse(Papa.unparse(preparsed),{
@@ -322,69 +339,90 @@ function precrypted_data(decrypted_data,message){
 }
 experiment_finished_and_emailed = false;
 function final_trial(){
-  $("#participant_country").show();
-	$("#experiment_div").html("<h3 class='text-primary'>Please do not close this window until it has been confirmed that the researcher has been e-mailed your data (or you have downloaded the data yourself that you will e-mail the researcher). If you do not get a prompt to do this within 30 seconds, press CTRL-S and you should be able to directly download your data.</h3>");
-	download_at_end = exp_json.this_condition.download_at_end;
+  switch(dev_obj.context){
+    case "server":
+      $("#experiment_div").html("<h3 class='text-primary'>Please do not close this window until it has been confirmed that the researcher has been e-mailed your data (or you have downloaded the data yourself that you will e-mail the researcher). If you do not get a prompt to do this within 30 seconds, press CTRL-S and you should be able to directly download your data.</h3>");
+      download_at_end = exp_json.this_condition.download_at_end;
 
-	if(simulator_off()){
-		$.post("emailData.php",{
-			all_data   : JSON.stringify(exp_json),
-		},function(returned_data){
-			message_data = returned_data.split(" encrypted data = ");
-      if(message_data.length == 1){
-        //retrieve researcher e-mail address
-        precrypted_data(exp_json,"Problem encrypting: <b>"+ message_data +"</b>, we'll try again every 10 seconds, but in case it fails, please download and e-mail this file. What do you want to save this file as? (you will get this message each time we fail to e-mail your data to the researcher)");
+      if(simulator_off()){
+        $.post("emailData.php",{
+          all_data   : JSON.stringify(exp_json),
+        },function(returned_data){
+          message_data = returned_data.split(" encrypted data = ");
+          if(message_data.length == 1){
+            //retrieve researcher e-mail address
+            precrypted_data(exp_json,"Problem encrypting: <b>"+ message_data +"</b>, we'll try again every 10 seconds, but in case it fails, please download and e-mail this file. What do you want to save this file as? (you will get this message each time we fail to e-mail your data to the researcher)");
+            setTimeout(function(){
+              final_trial();
+            },10000);
+          } else {
+              $("#participant_country").show();
+              $("#participant_country").load("ParticipantCountry.html");
+
+            encrypted_data = message_data[1];
+
+            if(typeof(exp_json.this_condition.end_message) !== "undefined" && exp_json.this_condition.end_message !== ""){
+              $("#experiment_div").html("<h3 class='text-primary'>"+exp_json.this_condition.end_message+"</h3>");
+            } else {
+              $("#experiment_div").html("");
+            }
+            $("#experiment_div").append("<div id='download_div'></div>");
+
+            if(download_at_end == "on"){
+              $("#download_div").html("<h1 class='text-primary'>" + message_data[0] + " <br><br> You can download the encrypted version of your data <span id='encrypt_click' class='text-success'>here</span> <br><br>or an unencrypted version <span id='raw_click' class='text-success'>here</span></h1>");
+              
+                $("#encrypt_click").on("click",function(){
+                  bootbox.prompt({
+                    title:"What do you want to save this file as?",
+                    value:$("#participant_code").val()+"_encrypted.txt",
+                    callback:function(result){
+                      var blob = new Blob([encrypted_data], {type: 'text/csv'});
+                      if(window.navigator.msSaveOrOpenBlob) {
+                        window.navigator.msSaveBlob(blob, result);
+                      }
+                      else{
+                        var elem = window.document.createElement('a');
+                        elem.href = window.URL.createObjectURL(blob);
+                        elem.download = result;
+                        document.body.appendChild(elem);
+                        elem.click();
+                        document.body.removeChild(elem);
+                      }
+                    }
+                  });
+                });
+                $("#raw_click").on("click",function(){
+                  precrypted_data(exp_json,"What do you want to save this file as?");
+                });
+            } else if(download_at_end == "off") {
+              // do nothing
+            } else {
+              bootbox.alert("It's unclear whether the researcher wants you to be able to download your data or not");
+            }
+            experiment_finished_and_emailed = true;
+          }
+        });
+      } else {
+        $("#experiment_div").html("<h1>You have finished. You can download the data by clicking <b><span id='download_json'>here</span></b>.</h1>");
+      }
+      break;
+    case "github":
+      $("#experiment_div").html("<h1 class='text-danger'>Please wait while we confirm that all your data has been saved</h1>");
+      function google_save_check(){
         setTimeout(function(){
-          final_trial();
-        },10000);
-			} else {
-
-				encrypted_data = message_data[1];
-
-        if(typeof(exp_json.this_condition.end_message) !== "undefined" && exp_json.this_condition.end_message !== ""){
-          $("#experiment_div").html("<h3 class='text-primary'>"+exp_json.this_condition.end_message+"</h3>");
-        } else {
-					$("#experiment_div").html("");
-				}
-        $("#experiment_div").append("<div id='download_div'></div>");
-
-				if(download_at_end == "on"){
-          $("#download_div").html("<h1 class='text-primary'>" + message_data[0] + " <br><br> You can download the encrypted version of your data <span id='encrypt_click' class='text-success'>here</span> <br><br>or an unencrypted version <span id='raw_click' class='text-success'>here</span></h1>");
-
-            $("#encrypt_click").on("click",function(){
-              bootbox.prompt({
-                title:"What do you want to save this file as?",
-                value:$("#participant_code").val()+"_encrypted.txt",
-                callback:function(result){
-                  var blob = new Blob([encrypted_data], {type: 'text/csv'});
-                  if(window.navigator.msSaveOrOpenBlob) {
-                    window.navigator.msSaveBlob(blob, result);
-                  }
-                  else{
-                    var elem = window.document.createElement('a');
-                    elem.href = window.URL.createObjectURL(blob);
-                    elem.download = result;
-                    document.body.appendChild(elem);
-                    elem.click();
-                    document.body.removeChild(elem);
-                  }
-                }
-              });
-            });
-            $("#raw_click").on("click",function(){
-              precrypted_data(exp_json,"What do you want to save this file as?");
-            });
-				} else if(download_at_end == "off") {
-					// do nothing
-				} else {
-					bootbox.alert("It's unclear whether the researcher wants you to be able to download your data or not");
-				}
-        experiment_finished_and_emailed = true;
-			}
-		});
-	} else {
-		$("#experiment_div").html("<h1>You have finished. You can download the data by clicking <b><span id='download_json'>here</span></b>.</h1>");
-	}
+          if(google_obj.saves_started == google_obj.saves_ended){
+            $("#experiment_div").html("<h1>Thank you for participating. If you'd like to download your raw data <span id='download_json'>click here</span></h1>");
+            $("#participant_country").show();
+            $("#participant_country").load("ParticipantCountry.html");
+          } else {
+            google_save_check();
+          }
+        },1000);
+      }
+      google_save_check();
+      break;
+  }
+	
 	$("#download_json").on("click",function(){
 		precrypted_data(exp_json,"What do you want to save this file as?");
 	});
@@ -498,10 +536,10 @@ function process_welcome(){
 		if(pp_id_setting == "off"){																// put in a participant ID that is clearly not unique (e.g. "notUnique").
 			$("#participant_code").val("notUnique");
 			post_welcome("notUnique","skip"); 											//"skip" means that it will automatically accept non unique ids
-		} else if(pp_id_setting == "random"){
+		} else if(pp_id_setting == "random"){      
 			var this_code = Math.random().toString(36).substr(2, 16)
 			$("#participant_code").val(this_code);
-			post_welcome(this_code,"random");
+      post_welcome(this_code,"random");
 		} else if(pp_id_setting  == "on"){
 			$("#loading_exp_json").fadeOut(500);
 			$("#researcher_message").fadeIn(2000);
@@ -572,12 +610,19 @@ function create_exp_json_functions(){
         var split_url      = document.URL.split(".json")[0];
         dev_obj.experiment = split_url.split("/").pop();
       }
-
-      google_save(dev_obj.experiment,
-                  $("#participant_code").val(),
-                  JSON.stringify(encrypt(exp_json.public_key,                  //the public key
-                                JSON.stringify(exp_json.responses))),          //the data
-                  exp_json.google_script); 
+      google_obj.saves_started ++;
+      google_obj.save_queue_add(
+        function(){
+          google_save(dev_obj.experiment,
+                      $("#participant_code").val(),
+                      JSON.stringify(encrypt(exp_json.public_key,    //the public key
+                      JSON.stringify(exp_json.responses))),          //the data
+          exp_json.google_script,
+          function(){
+            google_obj.saves_ended ++;
+          }); 
+        }
+      );
     }
     
 		$("#experiment_progress").css("width",(100 * exp_json.trial_no/(exp_json.parsed_proc.length-1))+"%");
