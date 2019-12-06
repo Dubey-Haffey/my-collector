@@ -18,20 +18,40 @@
 
 		Kitten release (2019) author: Dr. Anthony Haffey (a.haffey@reading.ac.uk)
 -->
+<script>
 
+if(typeof(dev_obj) == "undefined"){
+  dev_obj = {
+    dev_location:"Surveys.html"
+  }
+  document.write('<script src="../../CollectorMap.js"><\/script>');
+  
+  function get_map(){
+    if(typeof(isolation_map) !== "undefined"){
+      collector_map = this_map(dev_obj.dev_location);
+    } else {
+      setTimeout(function(){
+        get_map();
+        load_default_surveys();
+      },1000);
+    }
+  }
+  get_map();
+}
+</script>
 <script>
 default_surveys = {};
 
 function load_default_surveys(){
   var default_survey_files = ["autism_quotient.csv",
                               "demographics.csv",
-                              "empathy_quotient"];
+                              "empathy_quotient_40.csv"];
 
   function load_survey(list){
     if(list.length > 0){
       var this_survey = list.pop();
       $.get(collector_map[this_survey],function(survey_content){
-        default_surveys[this_survey] = Papa.parse(survey_content).data;
+        default_surveys[this_survey.toLowerCase().replace(".csv","")] = Papa.parse(survey_content).data;
         load_survey(list);
       });
     } else {
@@ -46,28 +66,7 @@ function load_default_surveys(){
     }
   }
   load_survey(default_survey_files);
-  /*
-  default_survey_files.forEach(function(file){
-
-  });
-
-  Object.keys(default_surveys).forEach(function(survey){
-    default_surveys[survey] = Papa.parse(default_surveys[survey]).data;
-  });
-
-  $default_surveys 				 = glob('IndexTabs/Surveys/default/*.csv');
-  $default_surveys_content = new stdClass();
-
-  foreach($default_surveys as $default_survey){
-    $default_survey_name = str_replace("IndexTabs/Surveys/default/","",$default_survey);
-    $default_surveys_content ->  $default_survey_name = file_get_contents($default_survey);
-  }
-  */
-
-
-
 }
-load_default_surveys();
 </script>
 
 
@@ -86,7 +85,7 @@ load_default_surveys();
 </style>
 
 <nav class="navbar navbar-primary bg-white fixed-top fixed-top-2" id="sim_navbar">
-  <table>
+  <table style = "max-width:80%">
     <tr>
       <td>
         <button class='btn btn-primary' type='button' id="new_survey_button" title="Will create a new survey based on the one you have selected. Please select one of the existing surveys if you haven't already to be able to create a new survey based on it.">New Survey</button>
@@ -112,15 +111,16 @@ load_default_surveys();
       </td>
     </tr>
   </table>
-  <div class="tab-content" id="pills-tabContent">
-    <div class="tab-pane fade show active" id="pills-spreadsheet" role="tabpanel" aria-labelledby="pills-spreadsheet-tab">
-      <div id="survey_HoT"></div>
-    </div>
-    <div class="tab-pane fade" id="pills-preview" role="tabpanel" aria-labelledby="pills-preview-tab">
-      <div id="survey_preview"></div>
-    </div>
-  </div>
 </nav>
+<div class="tab-content" id="pills-tabContent" style="top:100px; position: absolute;">
+  <div class="tab-pane fade show active" id="pills-spreadsheet" role="tabpanel" aria-labelledby="pills-spreadsheet-tab">
+    <div id="survey_HoT"></div>
+  </div>
+  <div class="tab-pane fade" id="pills-preview" role="tabpanel" aria-labelledby="pills-preview-tab">
+    <div id="survey_preview"></div>
+  </div>
+</div>
+
 
 
 <script>
@@ -130,63 +130,6 @@ load_default_surveys();
 
 
 var survey_HoT;
-
-function list_surveys(){
-	if(typeof(megaUberJson.surveys) == "undefined"){
-		megaUberJson.surveys = {
-			preview         : false,
-			user_surveys    : {}
-		}
-  }
-	megaUberJson.surveys = typeof(megaUberJson.surveys) == "undefined" ? {} : megaUberJson.surveys;
-	megaUberJson.surveys.default_surveys = default_surveys;
-
-	megaUberJson.surveys.user_surveys = typeof(megaUberJson.surveys.user_surveys) == "undefined" ? {} : megaUberJson.surveys.user_surveys;
-	megaUberJson.surveys.default_surveys = clean_obj_keys(megaUberJson.surveys.default_surveys);
-	//megaUberJson.surveys.user_surveys = clean_obj_keys(megaUberJson.surveys.user_surveys);
-
-	var def_survey_list  = Object.keys(megaUberJson.surveys.default_surveys).sort();
-	var user_survey_list = Object.keys(megaUberJson.surveys.user_surveys).sort();
-
-  def_survey_list.forEach(function(survey){
-    $("#survey_select").append($("<option>",{
-			text:survey,
-			value:"default|" + survey,
-			class:"bg-info text-white"
-		}));
-	});
-	user_survey_list.forEach(function(user_survey){
-    $("#survey_select").append($("<option>",{
-			text:user_survey,
-			value:"user|" + user_survey,
-			class:"bg-white text-dark"
-		}));
-	});
-	synch_surveys();
-}
-
-function synch_surveys(){
-	dbx.filesListFolder({path:"/surveys"})
-		.then(function(result){
-			result.entries.forEach(function(entry){
-				if(typeof(megaUberJson.surveys.user_surveys[entry.name.toLowerCase()]) == "undefined"){
-					dbx.sharingCreateSharedLink({path:entry.path_lower})
-						.then(function(shared_link){
-							$.get(shared_link.url.replace("www.","dl."),function(result){
-								var survey_name = entry.name.toLowerCase().replace(".csv","");
-								megaUberJson.surveys.user_surveys[survey_name] = Papa.parse(result).data;
-							});
-						})
-						.catch(function(error){
-							report_error(error);
-						});
-				}
-			});
-		})
-		.catch(function(error){
-			report_error(error);
-		});
-};
 
 function create_survey_HoT(this_survey){
 	var container = document.getElementById('survey_HoT');
@@ -272,10 +215,82 @@ function create_survey_HoT(this_survey){
 			var this_survey = this.getData().filter(function(row){ return row.join("") !== '' });
 		}
 	});
-
 	var this_survey_name = $("#survey_select").val();
-	preview_survey(this_survey);
+  preview_survey(this_survey);
 }
+
+function list_surveys(){
+	if(typeof(megaUberJson.surveys) == "undefined"){
+		megaUberJson.surveys = {
+			preview         : false,
+			user_surveys    : {}
+		};
+  }
+	megaUberJson.surveys = typeof(megaUberJson.surveys) == "undefined" ? {} : megaUberJson.surveys;
+	megaUberJson.surveys.default_surveys = default_surveys;
+
+	megaUberJson.surveys.user_surveys = typeof(megaUberJson.surveys.user_surveys) == "undefined" ? {} : megaUberJson.surveys.user_surveys;
+	megaUberJson.surveys.default_surveys = clean_obj_keys(megaUberJson.surveys.default_surveys);
+
+  
+
+	var def_survey_list  = Object.keys(megaUberJson.surveys.default_surveys).sort();
+	var user_survey_list = Object.keys(megaUberJson.surveys.user_surveys).sort();
+
+
+  load_default_surveys();
+  /*
+  def_survey_list.forEach(function(survey){
+    $("#survey_select").append($("<option>",{
+			text:survey,
+			value:"default|" + survey,
+			class:"bg-info text-white"
+		}));
+	});
+  */
+	user_survey_list.forEach(function(user_survey){
+    $("#survey_select").append($("<option>",{
+			text:user_survey,
+			value:"user|" + user_survey,
+			class:"bg-white text-dark"
+		}));
+	});
+  if(typeof(dev_obj.dev_location) == "undefined"){
+    synch_surveys();
+  }
+}
+
+function preview_survey(this_survey){
+  megaUberJson.surveys.preview = true;
+  survey_template = $.get(collector_map["survey.html"], function(survey_template){
+    survey_template = survey_template.replace('"{{survey}}"',
+                                              JSON.stringify(this_survey));
+    $("#survey_preview").html(survey_template);
+  });
+}
+
+function synch_surveys(){
+	dbx.filesListFolder({path:"/surveys"})
+		.then(function(result){
+			result.entries.forEach(function(entry){
+				if(typeof(megaUberJson.surveys.user_surveys[entry.name.toLowerCase()]) == "undefined"){
+					dbx.sharingCreateSharedLink({path:entry.path_lower})
+						.then(function(shared_link){
+							$.get(shared_link.url.replace("www.","dl."),function(result){
+								var survey_name = entry.name.toLowerCase().replace(".csv","");
+								megaUberJson.surveys.user_surveys[survey_name] = Papa.parse(result).data;
+							});
+						})
+						.catch(function(error){
+							report_error(error);
+						});
+				}
+			});
+		})
+		.catch(function(error){
+			report_error(error);
+		});
+};
 
 function update_exp_survey(survey_name,survey_content){
 	if(typeof(exp_json.surveys) == "undefined"){
@@ -303,23 +318,6 @@ function update_user_survey(){
   }
 }
 
-
-function preview_survey(preview_survey){
-
-  megaUberJson.surveys.preview = true;
-  if(typeof(megaUberJson.trialtypes.user_trialtypes.surveycat) !== "undefined"){
-    survey_template = megaUberJson.trialtypes.user_trialtypes.surveycat;
-  } else {
-    survey_template = megaUberJson.trialtypes.default_trialtypes.surveycat;
-  }
-
-	//NOTE that this needs to change to "default" once the trialtype is finally finalised
-	survey_template = survey_template.replace('load_survey("{{survey}}");','load_survey('+JSON.stringify(preview_survey)+')');
-	$("#survey_preview").html(survey_template);
-}
-
-
-
 //////////////////////
 // element triggers //
 //////////////////////
@@ -331,7 +329,6 @@ $("#delete_survey_btn").on("click",function(){
 			delete megaUberJson.surveys.user_surveys[survey_name];
 			dbx.filesDelete({path:"/surveys/" + survey_name})
 				.then(function(result){
-					console.dir(result);
 					custom_alert("Succesfully deleted <b>" + survey_name + "</b>");
 					$('#survey_select option[value="' + $("#survey_select").val() + '"]').remove();
 					$("#survey_select").val("default|demographics.csv");
@@ -376,6 +373,13 @@ $("#new_survey_button").on("click",function(){
 	}
 });
 
+
+
+$("#pills-preview-tab").on("click",function(){
+  var this_survey =  survey_HoT.getData();
+  preview_survey(this_survey);
+});
+
 $("#save_survey_btn").on("click",function(){
 	if($("#survey_select").val() !== null){
 		var survey_name     = $("#survey_select").val().split("|");
@@ -395,15 +399,8 @@ $("#save_survey_btn").on("click",function(){
 	}
 });
 
-$("#pills-preview-tab").on("click",function(){
-  var this_survey =  survey_HoT.getData();
-  preview_survey(this_survey);
-});
-
-$("#survey_select").on("change",function(){
-
+$("#survey_select").on("change",function(){  
   var this_survey = $("#survey_select").val().split("|");
-
   if(this_survey[0] == "default"){
     $("#survey_select").removeClass("bg-light");
     $("#survey_select").addClass("bg-info");
@@ -411,8 +408,6 @@ $("#survey_select").on("change",function(){
 
     create_survey_HoT(megaUberJson.surveys.default_surveys[this_survey[1]]);
     $("#spreadsheet_preview_tabs").show();
-
-
   } else if(this_survey[0] == "user"){
     $("#survey_select").removeClass("bg-info");
     $("#survey_select").removeClass("text-white");
@@ -423,7 +418,9 @@ $("#survey_select").on("change",function(){
   } else {
     bootbox.alert("It's not clear whether this is supposed to be a default or user_trialtype");
   }
-
 });
 
+if(dev_obj.dev_location == "Surveys.html"){
+  list_surveys();
+}
 </script>

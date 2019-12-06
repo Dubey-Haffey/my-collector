@@ -79,8 +79,13 @@ Hard coding the libraries in this page for smoothness (rather than calling "libr
 </style>
 <!-- Collector javascript functions-->
 <script type="text/javascript" charset="utf-8" src="jsFunctions.js"></script>
-<script src="CollectorMap.js"></script>
+<script type="text/javascript" charset="utf-8" src="dbxFunctions.js"></script>
 <script src="browserCheck.js"></script>
+
+<script src="CollectorMap.js"></script>
+<script>
+collector_map = this_map("");
+</script>
 <div id="logged_in">
   <link rel="stylesheet" href="Style.css"></link>
   <nav class="navbar fixed-top navbar-light bg-primary navbar-expand-lg" id="top_navbar">
@@ -152,25 +157,6 @@ Hard coding the libraries in this page for smoothness (rather than calling "libr
     $(this).addClass("bg-white");
     $(this).addClass("text-primary");
     var this_id = this.id;
-    if(this_id == "option_Simulator"){
-      $("#help_content").animate(
-      {
-        top:"100px"
-      },
-      {
-        duration:200
-      });
-    } else {
-      setTimeout(function(){
-        $("#help_content").animate(
-        {
-          top:"60px"
-        },
-        {
-          duration:200
-        });
-      },300);
-    }
   });
   if($("#collector_account_email").html() == "--undefined--"){
     highlight_account("dropbox_account_email");
